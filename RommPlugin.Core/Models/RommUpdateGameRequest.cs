@@ -6,8 +6,6 @@ namespace RommPlugin.Core.Models
     {
         public string Name { get; set; }
 
-        public string FsName { get; set; }
-
         public string Summary { get; set; }
 
         public int? LaunchboxId { get; set; }

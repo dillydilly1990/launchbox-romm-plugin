@@ -486,7 +486,6 @@ namespace RommPlugin.Services
                         var request = new RommUpdateGameRequest
                         {
                             Name = game.Title,
-                            FsName = serverGame.FsName,
                             Summary = game.Notes,
                             LaunchboxId = game.LaunchBoxDbId,
                             RawLaunchboxMetadata = LaunchboxMetadaService.BuildLaunchboxMetadata(game),
