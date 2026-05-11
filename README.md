@@ -18,6 +18,8 @@ The **LaunchBox RomM Plugin** connects your local LaunchBox installation directl
 
 The plugin was designed to create an automated workflow between a self-hosted RomM server and a local LaunchBox setup.
 
+Supports both traditional ROM setups and PC/native games depending on your LaunchBox configuration.
+
 ---
 
 ## ✨ Main Features
@@ -48,6 +50,28 @@ The plugin automatically:
 - Configures executable paths
 - Marks games as installed/uninstalled
 - Supports DLC packages
+
+---
+
+### 📦 Automatic Archive Handling
+
+Compressed game files are automatically extracted during installation.
+
+The plugin also attempts to fix common nested archive structures automatically to ensure LaunchBox points to the correct executable.
+
+---
+
+### 🧠 Installed State Detection
+
+The plugin automatically tracks installation status for synchronized games.
+
+Installed games will:
+
+- Have executable paths configured
+- Be marked as installed inside LaunchBox
+- Support uninstall actions directly from LaunchBox
+
+Uninstalled games remain visible in the library without local files.
 
 ---
 
@@ -93,6 +117,8 @@ Example:
   ]
 }
 ```
+
+---
 
 ### 🔹 PreLoaders
 
@@ -170,6 +196,7 @@ The plugin supports dynamic variables inside `CommandLine`.
 | `%romsFolder%` | Folder where the game was installed |
 
 This allows portable and automated configurations.
+
 ---
 
 ### 🔄 Metadata Synchronization (LaunchBox → RomM)
@@ -342,6 +369,15 @@ Play Through LaunchBox / BigBox
 
 ---
 
+## ⚠️ Known Limitations
+
+- Requires an active RomM server connection
+- Installation folders must be writable
+- Some emulators may still require manual LaunchBox configuration
+- Metadata synchronization depends on existing LaunchBox metadata
+
+---
+
 ## 📸 Screenshots
 
 Recommended screenshots to include:
@@ -382,6 +418,8 @@ O **LaunchBox RomM Plugin** conecta sua instalação local do LaunchBox diretame
 
 O plugin foi desenvolvido para criar um fluxo automatizado entre um servidor RomM self-hosted e uma instalação local do LaunchBox.
 
+Suporta tanto bibliotecas tradicionais de ROMs quanto jogos nativos de PC, dependendo da configuração do seu LaunchBox.
+
 ---
 
 ## ✨ Funcionalidades
@@ -412,6 +450,28 @@ O plugin automaticamente:
 - Configura caminhos de executáveis automaticamente
 - Marca jogos como instalados/desinstalados
 - Suporta pacotes de DLC
+
+---
+
+### 📦 Manipulação Automática de Arquivos Compactados
+
+Arquivos compactados são extraídos automaticamente durante a instalação.
+
+O plugin também tenta corrigir automaticamente estruturas comuns de pastas aninhadas para garantir que o LaunchBox aponte para o executável correto.
+
+---
+
+### 🧠 Detecção de Estado de Instalação
+
+O plugin rastreia automaticamente o status de instalação dos jogos sincronizados.
+
+Jogos instalados:
+
+- Possuem caminhos de executáveis configurados
+- São marcados como instalados dentro do LaunchBox
+- Suportam ações de desinstalação diretamente pelo LaunchBox
+
+Jogos não instalados permanecem visíveis na biblioteca sem arquivos locais.
 
 ---
 
@@ -458,6 +518,8 @@ Exemplo:
 }
 ```
 
+---
+
 ### 🔹 PreLoaders
 
 Os `PreLoaders` são executados antes do jogo principal iniciar.
@@ -474,7 +536,7 @@ Campos suportados:
 
 | Campo | Descrição |
 |---|---|
-| `Name` | Nome exibido no LaunchBox |
+| `Name` | Nome exibido dentro do LaunchBox |
 | `Path` | Caminho do executável |
 | `CommandLine` | Argumentos personalizados |
 | `WaitToExit` | Aguarda finalizar antes de iniciar o jogo |
@@ -491,13 +553,13 @@ Eles podem ser utilizados para:
 - Desmontagem de discos virtuais
 - Encerramento de processos auxiliares
 - Pós-processamento
-- Scripts automáticos
+- Scripts automatizados
 
 Campos suportados:
 
 | Campo | Descrição |
 |---|---|
-| `Name` | Nome exibido no LaunchBox |
+| `Name` | Nome exibido dentro do LaunchBox |
 | `Path` | Caminho do executável |
 | `CommandLine` | Argumentos personalizados |
 
@@ -512,7 +574,7 @@ Exemplos:
 - Configuradores
 - Launchers alternativos
 - Editors
-- Setup tools
+- Ferramentas de setup
 - Trainers
 - Ferramentas auxiliares
 
@@ -533,7 +595,7 @@ O plugin suporta variáveis dinâmicas dentro de `CommandLine`.
 |---|---|
 | `%romsFolder%` | Pasta onde o jogo foi instalado |
 
-Isso permite criar configurações portáveis e automatizadas.
+Isso permite criar configurações automatizadas e portáveis.
 
 ---
 
@@ -704,6 +766,15 @@ Plugin Faz Download + Configuração
       ↓
 Executar Pelo LaunchBox / BigBox
 ```
+
+---
+
+## ⚠️ Limitações Conhecidas
+
+- Requer conexão ativa com o servidor RomM
+- As pastas de instalação precisam possuir permissão de escrita
+- Alguns emuladores ainda podem exigir configuração manual no LaunchBox
+- A sincronização de metadados depende de metadados existentes no LaunchBox
 
 ---
 
