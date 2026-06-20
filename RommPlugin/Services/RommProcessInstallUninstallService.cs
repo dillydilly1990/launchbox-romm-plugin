@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using Newtonsoft.Json;
+using RommPlugin.Core.Logging;
 using RommPlugin.Core.Models;
 using RommPlugin.Core.Storage;
 using RommPlugin.UI.Helpers;
@@ -17,7 +18,7 @@ namespace RommPlugin.Services
 {
     public class RommProcessInstallUninstallService
     {
-        public async Task ProcessInstallUninstallEvents()
+        public async Task ProcessInstallUninstallEvents(bool showEmptyMessage = true)
         {
             await ProgressRunner.RunAsync(
                 "Processing installations events",
@@ -33,7 +34,10 @@ namespace RommPlugin.Services
 
                     if (!File.Exists(flagPath))
                     {
-                        MessageBox.Show("Romm do not have any pending install");
+                        if (showEmptyMessage)
+                        {
+                            MessageBox.Show("RomM does not have any pending install");
+                        }
                         return;
                     }
 
@@ -41,7 +45,10 @@ namespace RommPlugin.Services
 
                     if (file?.Events == null || file.Events.Count == 0)
                     {
-                        MessageBox.Show("RomM do not have any pending install");
+                        if (showEmptyMessage)
+                        {
+                            MessageBox.Show("RomM does not have any pending install");
+                        }
                         return;
                     }
 
@@ -150,6 +157,13 @@ namespace RommPlugin.Services
                             flagPath,
                             JsonConvert.SerializeObject(file, Formatting.Indented)
                         );
+                    }
+
+                    RommLogger.Log("Pending installs processed successfully");
+
+                    if (showEmptyMessage)
+                    {
+                        MessageBox.Show("RomM finish all pending install");
                     }
                 }
             );

@@ -2,15 +2,8 @@
 {
     partial class RommSettingsForm
     {
-        /// <summary>
-        /// Required designer variable.
-        /// </summary>
         private System.ComponentModel.IContainer components = null;
 
-        /// <summary>
-        /// Clean up any resources being used.
-        /// </summary>
-        /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
         protected override void Dispose(bool disposing)
         {
             if (disposing && (components != null))
@@ -22,10 +15,6 @@
 
         #region Windows Form Designer generated code
 
-        /// <summary>
-        /// Required method for Designer support - do not modify
-        /// the contents of this method with the code editor.
-        /// </summary>
         private void InitializeComponent()
         {
             this.txtBaseUrl = new System.Windows.Forms.TextBox();
@@ -42,6 +31,8 @@
             this.groupBox1 = new System.Windows.Forms.GroupBox();
             this.txtRomsPath = new System.Windows.Forms.TextBox();
             this.keepLocalData = new System.Windows.Forms.CheckBox();
+            this.saveLogs = new System.Windows.Forms.CheckBox();
+            this.processPendingOnStartup = new System.Windows.Forms.CheckBox();
             this.btnCancel = new System.Windows.Forms.Button();
             this.groupBox1.SuspendLayout();
             this.SuspendLayout();
@@ -152,7 +143,7 @@
             this.label6.Size = new System.Drawing.Size(248, 53);
             this.label6.TabIndex = 13;
             this.label6.Text = "This informations is hard code saved, we recommend creator a unique user as \"view" +
-    "er\" role for it";
+                "er\" role for it";
             // 
             // groupBox1
             // 
@@ -189,6 +180,32 @@
             this.keepLocalData.Text = "Keep Local data in sync?";
             this.keepLocalData.UseVisualStyleBackColor = true;
             // 
+            // saveLogs
+            // 
+            this.saveLogs.AutoSize = true;
+            this.saveLogs.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.saveLogs.ForeColor = System.Drawing.Color.White;
+            this.saveLogs.Location = new System.Drawing.Point(25, 478);
+            this.saveLogs.Margin = new System.Windows.Forms.Padding(2);
+            this.saveLogs.Name = "saveLogs";
+            this.saveLogs.Size = new System.Drawing.Size(117, 19);
+            this.saveLogs.TabIndex = 19;
+            this.saveLogs.Text = "Save logs to file?";
+            this.saveLogs.UseVisualStyleBackColor = true;
+            // 
+            // processPendingOnStartup
+            // 
+            this.processPendingOnStartup.AutoSize = true;
+            this.processPendingOnStartup.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.processPendingOnStartup.ForeColor = System.Drawing.Color.White;
+            this.processPendingOnStartup.Location = new System.Drawing.Point(25, 501);
+            this.processPendingOnStartup.Margin = new System.Windows.Forms.Padding(2);
+            this.processPendingOnStartup.Name = "processPendingOnStartup";
+            this.processPendingOnStartup.Size = new System.Drawing.Size(211, 19);
+            this.processPendingOnStartup.TabIndex = 20;
+            this.processPendingOnStartup.Text = "Process pending installs on startup?";
+            this.processPendingOnStartup.UseVisualStyleBackColor = true;
+            // 
             // btnCancel
             // 
             this.btnCancel.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
@@ -206,8 +223,10 @@
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(30)))), ((int)(((byte)(30)))), ((int)(((byte)(30)))));
-            this.ClientSize = new System.Drawing.Size(332, 555);
+            this.ClientSize = new System.Drawing.Size(332, 580);
             this.Controls.Add(this.btnCancel);
+            this.Controls.Add(this.processPendingOnStartup);
+            this.Controls.Add(this.saveLogs);
             this.Controls.Add(this.keepLocalData);
             this.Controls.Add(this.txtRomsPath);
             this.Controls.Add(this.groupBox1);
@@ -225,7 +244,6 @@
             this.groupBox1.PerformLayout();
             this.ResumeLayout(false);
             this.PerformLayout();
-
         }
 
         #endregion
@@ -244,6 +262,8 @@
         private System.Windows.Forms.GroupBox groupBox1;
         private System.Windows.Forms.TextBox txtRomsPath;
         private System.Windows.Forms.CheckBox keepLocalData;
+        private System.Windows.Forms.CheckBox saveLogs;
+        private System.Windows.Forms.CheckBox processPendingOnStartup;
         private System.Windows.Forms.Button btnCancel;
     }
 }

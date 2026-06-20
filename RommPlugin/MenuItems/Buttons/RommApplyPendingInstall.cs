@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Windows;
 using RommPlugin.Services;
 using Unbroken.LaunchBox.Plugins;
 
@@ -15,9 +14,7 @@ namespace RommPlugin.MenuItems.Buttons
         {
             try
             {
-                await sync.ProcessInstallUninstallEvents();
-
-                MessageBox.Show("RomM finish all pending install");
+                await sync.ProcessInstallUninstallEvents(true);
             }
             catch (Exception ex)
             {

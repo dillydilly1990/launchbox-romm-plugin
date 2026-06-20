@@ -18,13 +18,20 @@ namespace RommPlugin.Core.Storage
 
         public static RommPluginSettings Load()
         {
-            if (!File.Exists(FilePath))
+            try
+            {
+                if (!File.Exists(FilePath))
+                {
+                    return new RommPluginSettings();
+                }
+
+                var json = File.ReadAllText(FilePath);
+                return JsonConvert.DeserializeObject<RommPluginSettings>(json) ?? new RommPluginSettings();
+            }
+            catch
             {
                 return new RommPluginSettings();
             }
-
-            var json = File.ReadAllText(FilePath);
-            return JsonConvert.DeserializeObject<RommPluginSettings>(json);
         }
 
         public static RommPluginSettings LoadFrom(string filePath)

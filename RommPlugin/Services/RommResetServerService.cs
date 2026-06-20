@@ -1,5 +1,7 @@
-﻿using System.Threading.Tasks;
+﻿using System.Windows;
+using System.Threading.Tasks;
 using RommPlugin.ApiClient;
+using RommPlugin.Core.Logging;
 using RommPlugin.UI.Helpers;
 
 namespace RommPlugin.Services
@@ -28,6 +30,8 @@ namespace RommPlugin.Services
                         return;
                     }
 
+                    RommLogger.Log($"Reset metadata started: {rommPlatforms.Count} platforms");
+
                     var platformsCompleted = 0;
                     var platformsTotal = rommPlatforms.Count;
 
@@ -40,6 +44,8 @@ namespace RommPlugin.Services
                             continue;
                         }
 
+                        RommLogger.Log($"Platform '{rommPlatform.Name}': {rommGames.Count} games to reset");
+
                         progress.SetTitle($"RomM: Delete all metadata");
 
                         var completedGames = 0;
@@ -51,11 +57,17 @@ namespace RommPlugin.Services
 
                             await _api.RemoveGameMetadataById(rommGame.Id);
 
+                            RommLogger.Log($"Game {rommGame.Id} metadata removed");
                             completedGames++;
                         }
 
                         platformsCompleted++;
+
+                        RommLogger.Log($"Reset metadata completed for platform '{rommPlatform.Name}'");
                     }
+
+                    RommLogger.Log("Remove all server metadata completed successfully");
+                    MessageBox.Show("All metadata has been deleted from RomM server");
                 }
             );
         }

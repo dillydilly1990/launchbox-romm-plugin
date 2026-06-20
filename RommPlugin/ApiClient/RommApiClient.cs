@@ -43,7 +43,7 @@ namespace RommPlugin.ApiClient
         public async Task<List<RommGame>> GetAllGamesByPlatformAsync(int platformId)
         {
             var allGames = new List<RommGame>();
-            int limit = 100;
+            int limit = 1000;
             int offset = 0;
             bool hasMore = true;
 
@@ -157,7 +157,22 @@ namespace RommPlugin.ApiClient
                         content
                     );
 
-                    response.EnsureSuccessStatusCode();
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        if ((int)response.StatusCode >= 500)
+                        {
+                            if (attempt == maxAttempts)
+                            {
+                                throw new HttpRequestException($"Server error {(int)response.StatusCode}");
+                            }
+
+                            await Task.Delay(500 * attempt);
+                            continue;
+                        }
+
+                        response.EnsureSuccessStatusCode();
+                    }
+
                     return;
                 }
             }
@@ -186,6 +201,22 @@ namespace RommPlugin.ApiClient
                 await stream.CopyToAsync(file);
                 return;
             }
+        }
+
+        public async Task<byte[]> DownloadBytesAsync(string url)
+        {
+            url = url.Replace(" ", "%20");
+
+            if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
+            {
+                var response = await _http.GetAsync(uri);
+                response.EnsureSuccessStatusCode();
+                return await response.Content.ReadAsByteArrayAsync();
+            }
+
+            var relativeResponse = await _http.GetAsync(url);
+            relativeResponse.EnsureSuccessStatusCode();
+            return await relativeResponse.Content.ReadAsByteArrayAsync();
         }
 
         private string GetMimeType(string path)

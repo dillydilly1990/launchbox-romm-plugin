@@ -73,3 +73,6 @@ Desktop.ini
 # Generated lock files (optional - keep if using packages.lock.json intentionally)
 project.lock.json
 project.fragment.lock.json
+
+# opencode
+.opencode/

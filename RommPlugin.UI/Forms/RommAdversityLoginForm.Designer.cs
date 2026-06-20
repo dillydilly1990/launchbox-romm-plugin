@@ -2,15 +2,8 @@
 {
     partial class RommAdversityLoginForm
     {
-        /// <summary>
-        /// Required designer variable.
-        /// </summary>
         private System.ComponentModel.IContainer components = null;
 
-        /// <summary>
-        /// Clean up any resources being used.
-        /// </summary>
-        /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
         protected override void Dispose(bool disposing)
         {
             if (disposing && (components != null))
@@ -22,10 +15,6 @@
 
         #region Windows Form Designer generated code
 
-        /// <summary>
-        /// Required method for Designer support - do not modify
-        /// the contents of this method with the code editor.
-        /// </summary>
         private void InitializeComponent()
         {
             this.btnProceed = new System.Windows.Forms.Button();
@@ -36,11 +25,13 @@
             this.txtPassword = new System.Windows.Forms.TextBox();
             this.label6 = new System.Windows.Forms.Label();
             this.btnCancel = new System.Windows.Forms.Button();
+            this.useConfiguredAccount = new System.Windows.Forms.CheckBox();
+            this.saveAdminAccount = new System.Windows.Forms.CheckBox();
             this.SuspendLayout();
             // 
             // btnProceed
             // 
-            this.btnProceed.Location = new System.Drawing.Point(234, 323);
+            this.btnProceed.Location = new System.Drawing.Point(234, 350);
             this.btnProceed.Name = "btnProceed";
             this.btnProceed.Size = new System.Drawing.Size(75, 23);
             this.btnProceed.TabIndex = 3;
@@ -104,15 +95,15 @@
             this.label6.Name = "label6";
             this.label6.Size = new System.Drawing.Size(248, 72);
             this.label6.TabIndex = 13;
-            this.label6.Text = "You need a editor account to perform this action. This information is confidentia" +
-    "l and will not be saved; you will need to fill it in each time you perform this " +
-    "action!";
+            this.label6.Text = "You need an editor account to perform this action. This information will be save" +
+    "d in hard code. Consider carefully whether you want to save your admin credenti" +
+    "als.";
             // 
             // btnCancel
             // 
             this.btnCancel.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.btnCancel.ForeColor = System.Drawing.SystemColors.ControlText;
-            this.btnCancel.Location = new System.Drawing.Point(153, 323);
+            this.btnCancel.Location = new System.Drawing.Point(153, 350);
             this.btnCancel.Name = "btnCancel";
             this.btnCancel.Size = new System.Drawing.Size(75, 23);
             this.btnCancel.TabIndex = 14;
@@ -120,12 +111,42 @@
             this.btnCancel.UseVisualStyleBackColor = true;
             this.btnCancel.Click += new System.EventHandler(this.btnCancel_Click);
             // 
+            // useConfiguredAccount
+            // 
+            this.useConfiguredAccount.AutoSize = true;
+            this.useConfiguredAccount.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.useConfiguredAccount.ForeColor = System.Drawing.Color.White;
+            this.useConfiguredAccount.Location = new System.Drawing.Point(26, 295);
+            this.useConfiguredAccount.Margin = new System.Windows.Forms.Padding(2);
+            this.useConfiguredAccount.Name = "useConfiguredAccount";
+            this.useConfiguredAccount.Size = new System.Drawing.Size(247, 19);
+            this.useConfiguredAccount.TabIndex = 15;
+            this.useConfiguredAccount.Text = "Use account configured in settings";
+            this.useConfiguredAccount.UseVisualStyleBackColor = true;
+            this.useConfiguredAccount.CheckedChanged += new System.EventHandler(this.UseConfiguredAccount_CheckedChanged);
+            // 
+            // saveAdminAccount
+            // 
+            this.saveAdminAccount.AutoSize = true;
+            this.saveAdminAccount.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.saveAdminAccount.ForeColor = System.Drawing.Color.White;
+            this.saveAdminAccount.Location = new System.Drawing.Point(26, 320);
+            this.saveAdminAccount.Margin = new System.Windows.Forms.Padding(2);
+            this.saveAdminAccount.Name = "saveAdminAccount";
+            this.saveAdminAccount.Size = new System.Drawing.Size(218, 19);
+            this.saveAdminAccount.TabIndex = 16;
+            this.saveAdminAccount.Text = "Save admin account for next time";
+            this.saveAdminAccount.UseVisualStyleBackColor = true;
+            this.saveAdminAccount.CheckedChanged += new System.EventHandler(this.SaveAdminAccount_CheckedChanged);
+            // 
             // RommAdversityLoginForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(30)))), ((int)(((byte)(30)))), ((int)(((byte)(30)))));
-            this.ClientSize = new System.Drawing.Size(332, 367);
+            this.ClientSize = new System.Drawing.Size(332, 395);
+            this.Controls.Add(this.saveAdminAccount);
+            this.Controls.Add(this.useConfiguredAccount);
             this.Controls.Add(this.btnCancel);
             this.Controls.Add(this.label6);
             this.Controls.Add(this.label4);
@@ -139,7 +160,6 @@
             this.Text = "RommAdversityLoginForm";
             this.ResumeLayout(false);
             this.PerformLayout();
-
         }
 
         #endregion
@@ -151,5 +171,7 @@
         private System.Windows.Forms.TextBox txtPassword;
         private System.Windows.Forms.Label label6;
         private System.Windows.Forms.Button btnCancel;
+        private System.Windows.Forms.CheckBox useConfiguredAccount;
+        private System.Windows.Forms.CheckBox saveAdminAccount;
     }
 }

@@ -3,6 +3,7 @@ using System.Windows;
 using RommPlugin.ApiClient;
 using RommPlugin.Services;
 using Unbroken.LaunchBox.Plugins;
+using RommPlugin.Core.Logging;
 using RommPlugin.Core.Storage;
 
 namespace RommPlugin.MenuItems.Buttons
@@ -32,11 +33,10 @@ namespace RommPlugin.MenuItems.Buttons
                 sync.SetApi(api);
 
                 await sync.SyncAsync();
-
-                MessageBox.Show("RomM sync completed successfully.");
             }
             catch (Exception ex)
             {
+                RommLogger.LogError("[RommPlugin] error: " + ex);
                 throw new Exception("[RommPlugin] error: " + ex);
             }
         }
