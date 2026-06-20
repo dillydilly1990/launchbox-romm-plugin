@@ -2,9 +2,11 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using RommPlugin.ApiClient;
+using RommPlugin.Core.Logging;
 using RommPlugin.Core.Models;
 using RommPlugin.Core.Models.Statics;
 using RommPlugin.Core.Storage;
@@ -55,6 +57,8 @@ namespace RommPlugin.Services
                         return;
                     }
 
+                    RommLogger.Log($"Sync started: {rommPlatforms.Count} platforms found, {rommGamesOnly.Count} local RomM games");
+
                     var localGamesById = new Dictionary<int, IGame>();
 
                     foreach (var game in rommGamesOnly)
@@ -92,6 +96,7 @@ namespace RommPlugin.Services
                     var platformTotal = selectedPlatformIds.Count;
 
                     var newPlatforms = new List<string>();
+                    var removedGames = new List<IGame>();
 
                     foreach (var rommPlatform in rommPlatforms)
                     {
@@ -138,12 +143,16 @@ namespace RommPlugin.Services
                             continue;
                         }
 
+                        platformCompleted++;
+
                         var rommGames = await _api.GetAllGamesByPlatformAsync(rommPlatform.Id);
 
                         if (rommGames == null)
                         {
                             continue;
                         }
+
+                        RommLogger.Log($"Platform '{platform.Name}': {rommGames.Count} games to process");
 
                         progress.SetTitle($"RomM: Syncing {platform.Name}");
 
@@ -152,20 +161,31 @@ namespace RommPlugin.Services
 
                         var serverGameIds = new HashSet<int>();
 
+                        var platformProgress = false;
+
                         foreach (var rommGame in rommGames)
                         {
+                            if (!platformProgress)
+                            {
+                                progress.SetIndeterminate(false);
+                                platformProgress = true;
+                            }
+
                             progress.SetStatus($"Platform {platformCompleted}/{platformTotal} | Games {completedGames}/{totalGames}");
+                            progress.SetProgress((completedGames * 100) / Math.Max(totalGames, 1));
 
                             serverGameIds.Add(rommGame.Id);
 
                             if (localGamesById.TryGetValue(rommGame.Id, out var existingGame))
                             {
                                 UpdateGame(existingGame, rommGame, platform.Name, !settings.KeepLocalData);
+                                RommLogger.Log($"Game {rommGame.Id} updated: {NormalizeGameTitle(rommGame.Name)}");
                                 hasChanges = true;
                             }
                             else
                             {
                                 var normalizedTitle = NormalizeGameTitle(rommGame.Name);
+                                RommLogger.Log($"Game {rommGame.Id} created: {normalizedTitle}");
                                 var game = dataManager.AddNewGame(normalizedTitle);
 
                                 game.Platform = platform.Name;
@@ -184,6 +204,14 @@ namespace RommPlugin.Services
 
                                 localGamesById[rommGame.Id] = game;
                                 hasChanges = true;
+                            }
+
+                            var currentGame = localGamesById[rommGame.Id];
+                            ApplyServerMetadata(currentGame, rommGame);
+
+                            if (!HasAnyBoxFrontImage(currentGame))
+                            {
+                                await DownloadAndSetCoverArt(currentGame, rommGame);
                             }
 
                             completedGames++;
@@ -209,11 +237,12 @@ namespace RommPlugin.Services
                             if (!serverGameIds.Contains(rommId))
                             {
                                 dataManager.TryRemoveGame(localGame);
+                                removedGames.Add(localGame);
+                                RommLogger.Log($"Game {rommId} removed from platform '{platform.Name}' (not in server)");
                                 hasChanges = true;
                             }
                         }
 
-                        platformCompleted++;
                     }
 
                     if (newPlatforms.Any())
@@ -224,12 +253,22 @@ namespace RommPlugin.Services
                         );
                     }
 
+                    foreach (var removedGame in removedGames)
+                    {
+                        DeleteGameImages(removedGame);
+                    }
+
                     if (hasChanges)
                     {
                         dataManager.Save();
+                        dataManager.ForceReload();
                     }
 
+                    RommLogger.Log($"Sync completed. Changes saved: {hasChanges}");
+
                     CheckAndSavePlatforms(rommPlatforms, platforms);
+
+                    MessageBox.Show("RomM sync completed successfully.");
                 }
             );
         }
@@ -458,48 +497,92 @@ namespace RommPlugin.Services
                         return;
                     }
 
+                    RommLogger.Log($"Update metadata started: {rommGamesOnly.Count} games");
+
                     var completedGames = 0;
                     var gamesTotal = rommGamesOnly.Count;
+                    var progressLock = new object();
+                    var failedGames = new List<string>();
+                    var semaphore = new SemaphoreSlim(5);
 
                     progress.SetTitle($"RomM: Update all metadata");
 
-                    foreach (var game in rommGamesOnly)
+                    var tasks = rommGamesOnly.Select(async game =>
                     {
-                        TryGetRommId(game, out int rommId);
-                        var serverGame = await _api.GetGameByIdAsync(rommId);
+                        await semaphore.WaitAsync();
 
-                        if (serverGame == null)
+                        try
                         {
-                            continue;
+                            TryGetRommId(game, out int rommId);
+
+                            var artworkPath = GetCoverImagePath(game);
+                            var originalArtwork = artworkPath;
+
+                            if (!string.IsNullOrEmpty(artworkPath) && File.Exists(artworkPath))
+                            {
+                                artworkPath = RommImageService.EnsureRgbJpeg(artworkPath);
+                            }
+
+                            var request = new RommUpdateGameRequest
+                            {
+                                Name = game.Title,
+                                Summary = game.Notes,
+                                LaunchboxId = game.LaunchBoxDbId,
+                                RawLaunchboxMetadata = LaunchboxMetadaService.BuildLaunchboxMetadata(game),
+                                ArtworkPath = artworkPath
+                            };
+
+                            try
+                            {
+                                await _api.UpdateGameById(rommId, request);
+                                RommLogger.Log($"Game {rommId} metadata updated on server");
+                            }
+                            catch (Exception ex)
+                            {
+                                var platform = game.Platform ?? "Unknown";
+                                var gameName = $"{platform}/{game.Title} (RomM ID: {rommId})";
+                                RommLogger.LogError($"Update failed for {gameName}: {ex.Message}");
+                                RommLogger.LogException(ex);
+                                lock (progressLock) { failedGames.Add(gameName); }
+                            }
+
+                            if (!string.IsNullOrEmpty(artworkPath) && artworkPath != originalArtwork)
+                            {
+                                File.Delete(artworkPath);
+                            }
+
+                            var done = Interlocked.Increment(ref completedGames);
+                            if (done % 10 == 0)
+                            {
+                                lock (progressLock)
+                                {
+                                    progress.SetStatus($"Games: {done} of {gamesTotal}");
+                                }
+                            }
                         }
-
-                        progress.SetStatus($"Games: {completedGames} of {gamesTotal}");
-
-                        var artworkPath = GetCoverImagePath(game);
-                        var originalArtwork = artworkPath;
-
-                        if (!string.IsNullOrEmpty(artworkPath) && File.Exists(artworkPath))
+                        finally
                         {
-                            artworkPath = RommImageService.EnsureRgbJpeg(artworkPath);
+                            semaphore.Release();
                         }
+                    });
 
-                        var request = new RommUpdateGameRequest
-                        {
-                            Name = game.Title,
-                            Summary = game.Notes,
-                            LaunchboxId = game.LaunchBoxDbId,
-                            RawLaunchboxMetadata = LaunchboxMetadaService.BuildLaunchboxMetadata(game),
-                            ArtworkPath = artworkPath
-                        };
+                    await Task.WhenAll(tasks);
 
-                        await _api.UpdateGameById(rommId, request);
+                    RommLogger.Log($"Update metadata completed: {gamesTotal} games");
 
-                        if (!string.IsNullOrEmpty(artworkPath) && artworkPath != originalArtwork)
-                        {
-                            File.Delete(artworkPath);
-                        }
-
-                        completedGames++;
+                    if (failedGames.Count > 0)
+                    {
+                        RommLogger.LogError($"Update failed for {failedGames.Count} game(s). Check the log file for details.");
+                        MessageBox.Show(
+                            $"{failedGames.Count} game(s) failed to update.\n\nCheck the log file for details.",
+                            "RomM Update - Errors",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Warning
+                        );
+                    }
+                    else
+                    {
+                        MessageBox.Show("All metadata on server has been updated with local metadata");
                     }
                 }
             );
@@ -528,6 +611,231 @@ namespace RommPlugin.Services
             }
 
             return "";
+        }
+
+        private bool HasAnyBoxFrontImage(IGame game)
+        {
+            var images = game.GetAllImagesWithDetails();
+
+            foreach (var image in images)
+            {
+                if (image.ImageType == "Box - Front")
+                {
+                    return true;
+                }
+
+                if (image.ImageType == "Fanart - Box - Front")
+                {
+                    return true;
+                }
+
+                if (image.ImageType == "Advertisement Flyer - Front")
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private void ApplyServerMetadata(IGame game, RommGame rommGame)
+        {
+            var settings = RommPluginStorage.Load();
+            var shouldOverwrite = !settings.KeepLocalData;
+
+            var launchboxMeta = rommGame.LaunchBoxMetadata;
+            var ssMeta = rommGame.SsMetadata;
+            var igdbMeta = rommGame.IgdbMetadata;
+            var meta = rommGame.Metadatum;
+
+            ApplyReleaseDate(game, launchboxMeta, ssMeta, igdbMeta, meta, shouldOverwrite);
+            ApplyMaxPlayers(game, launchboxMeta, ssMeta, shouldOverwrite);
+            ApplyStringField(game.ReleaseType, v => game.ReleaseType = v,
+                launchboxMeta?.ReleaseType, null, null, null, shouldOverwrite);
+            ApplyPlayMode(game, launchboxMeta, shouldOverwrite);
+            ApplyVideoUrl(game, launchboxMeta, igdbMeta, shouldOverwrite);
+            ApplyCommunityRating(game, launchboxMeta, igdbMeta, meta, shouldOverwrite);
+            ApplyIntField(() => game.CommunityStarRatingTotalVotes, v => game.CommunityStarRatingTotalVotes = v,
+                launchboxMeta?.CommunityRatingCount, null, null, null, shouldOverwrite);
+            ApplyStringField(game.WikipediaUrl, v => game.WikipediaUrl = v,
+                launchboxMeta?.WikipediaUrl, null, null, null, shouldOverwrite);
+            ApplyStringField(game.Rating, v => game.Rating = v,
+                launchboxMeta?.Esrb, null, null, null, shouldOverwrite);
+
+            if (shouldOverwrite || string.IsNullOrEmpty(game.Notes))
+            {
+                game.Notes = ssMeta?.Synopsis ?? ssMeta?.Description ?? rommGame.Summary ?? game.Notes;
+            }
+
+            if (rommGame.LaunchboxId != null && rommGame.LaunchboxId > 0)
+            {
+                game.LaunchBoxDbId = rommGame.LaunchboxId;
+            }
+        }
+
+        private void ApplyReleaseDate(IGame game, LaunchBoxMetadataModel lb, SsMetadata ss, IgdbMetadata igdb, RommGameMeta meta, bool overwrite)
+        {
+            if (overwrite || game.ReleaseDate == null)
+            {
+                DateTime? date = null;
+
+                if (lb?.FirstReleaseDate != null)
+                    date = DateTimeOffset.FromUnixTimeSeconds(lb.FirstReleaseDate.Value).DateTime;
+                else if (ss?.ReleaseDate != null && DateTime.TryParse(ss.ReleaseDate, out var ssDate))
+                    date = ssDate;
+                else if (igdb?.FirstReleaseDate != null)
+                    date = DateTimeOffset.FromUnixTimeSeconds(igdb.FirstReleaseDate.Value).DateTime;
+                else if (meta?.FirstReleaseDate != null)
+                    date = DateTimeOffset.FromUnixTimeSeconds(meta.FirstReleaseDate.Value).DateTime;
+
+                if (date != null)
+                    game.ReleaseDate = date.Value;
+            }
+        }
+
+        private void ApplyMaxPlayers(IGame game, LaunchBoxMetadataModel lb, SsMetadata ss, bool overwrite)
+        {
+            if (overwrite || game.MaxPlayers == null || game.MaxPlayers == 0)
+            {
+                if (lb?.MaxPlayers != null)
+                    game.MaxPlayers = lb.MaxPlayers.Value;
+                else if (ss?.Players != null && int.TryParse(ss.Players, out var players))
+                    game.MaxPlayers = players;
+            }
+        }
+
+        private void ApplyPlayMode(IGame game, LaunchBoxMetadataModel lb, bool overwrite)
+        {
+            if (overwrite || string.IsNullOrEmpty(game.PlayMode))
+            {
+                if (lb?.Cooperative == true)
+                    game.PlayMode = "Cooperative";
+            }
+        }
+
+        private void ApplyVideoUrl(IGame game, LaunchBoxMetadataModel lb, IgdbMetadata igdb, bool overwrite)
+        {
+            if (overwrite || string.IsNullOrEmpty(game.VideoUrl))
+            {
+                var videoId = lb?.YoutubeVideoId ?? igdb?.YoutubeVideoId;
+
+                if (!string.IsNullOrEmpty(videoId))
+                    game.VideoUrl = $"https://www.youtube.com/watch?v={videoId}";
+            }
+        }
+
+        private void ApplyCommunityRating(IGame game, LaunchBoxMetadataModel lb, IgdbMetadata igdb, RommGameMeta meta, bool overwrite)
+        {
+            if (overwrite || game.CommunityStarRating == 0)
+            {
+                if (lb?.CommunityRating > 0)
+                    game.CommunityStarRating = lb.CommunityRating;
+                else if (igdb?.TotalRating != null)
+                    game.CommunityStarRating = (float)igdb.TotalRating.Value;
+                else if (meta?.AverageRating != null)
+                    game.CommunityStarRating = (float)meta.AverageRating.Value;
+            }
+
+            if (overwrite || game.CommunityStarRatingTotalVotes == 0)
+            {
+                if (lb?.CommunityRatingCount > 0)
+                    game.CommunityStarRatingTotalVotes = lb.CommunityRatingCount;
+            }
+        }
+
+        private void ApplyStringField(string currentValue, Action<string> setter,
+            string lbValue, string ssValue, string igdbValue, string metaValue,
+            bool shouldOverwrite)
+        {
+            if (shouldOverwrite || string.IsNullOrEmpty(currentValue))
+            {
+                var value = lbValue ?? ssValue ?? igdbValue ?? metaValue;
+
+                if (!string.IsNullOrEmpty(value))
+                    setter(value);
+            }
+        }
+
+        private void ApplyIntField(Func<int> getter, Action<int> setter,
+            int? lbValue, int? ssValue, int? igdbValue, int? metaValue,
+            bool shouldOverwrite)
+        {
+            if (shouldOverwrite || getter() == 0)
+            {
+                var value = lbValue ?? ssValue ?? igdbValue ?? metaValue;
+
+                if (value != null && value.Value > 0)
+                    setter(value.Value);
+            }
+        }
+
+        private void EnsureDirectoryExists(string path)
+        {
+            var dir = Path.GetDirectoryName(path);
+            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+            {
+                Directory.CreateDirectory(dir);
+            }
+        }
+
+        private string GetLaunchBoxImagesFolder()
+        {
+            var assemblyPath = System.Reflection.Assembly.GetExecutingAssembly().Location;
+            var launchBoxRoot = Path.GetDirectoryName(
+                Path.GetDirectoryName(
+                    Path.GetDirectoryName(assemblyPath)
+                )
+            );
+
+            return Path.Combine(launchBoxRoot, "Images");
+        }
+
+        private async Task DownloadAndSetCoverArt(IGame game, RommGame rommGame)
+        {
+            var coverUrl = !string.IsNullOrEmpty(rommGame.PathCoverSmall)
+                ? rommGame.PathCoverSmall
+                : rommGame.UrlCover;
+
+            if (!string.IsNullOrEmpty(coverUrl))
+            {
+                try
+                {
+                    var coverBytes = await _api.DownloadBytesAsync(coverUrl);
+
+                    var imagePath = game.GetNextAvailableImageFilePath(".jpg", "Box - Front", null);
+                    RommLogger.Log($"Cover art image path: {imagePath}");
+                    EnsureDirectoryExists(imagePath);
+                    File.WriteAllBytes(imagePath, coverBytes);
+
+                    RommLogger.Log($"Cover art downloaded for {game.Title}: {imagePath}");
+                }
+                catch (Exception ex)
+                {
+                    RommLogger.LogError($"Failed to download cover for {game.Title}: {ex.Message}");
+                }
+            }
+        }
+
+        private void DeleteGameImages(IGame game)
+        {
+            var imagesFolder = GetLaunchBoxImagesFolder();
+            var platformFolder = game.Platform ?? "Unknown";
+            var title = game.Title ?? "Unknown";
+
+            var gameImagesDir = Path.Combine(imagesFolder, SanitizeFolderName(platformFolder), SanitizeFolderName(title));
+
+            if (Directory.Exists(gameImagesDir))
+            {
+                Directory.Delete(gameImagesDir, true);
+                RommLogger.Log($"Deleted images for removed game: {title}");
+            }
+        }
+
+        private string SanitizeFolderName(string name)
+        {
+            var invalid = Path.GetInvalidFileNameChars();
+            var sanitized = new string(name.Where(c => !invalid.Contains(c)).ToArray());
+            return sanitized.Trim();
         }
     }
 }

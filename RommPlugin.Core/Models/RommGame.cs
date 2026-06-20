@@ -37,6 +37,9 @@ namespace RommPlugin.Core.Models
         [JsonProperty("name")]
         public string Name { get; set; }
 
+        [JsonProperty("launchbox_id")]
+        public int? LaunchboxId { get; set; }
+
         [JsonProperty("platform_id")]
         public int PlatformId { get; set; }
 

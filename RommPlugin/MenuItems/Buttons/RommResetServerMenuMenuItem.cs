@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Windows.Forms;
 using RommPlugin.ApiClient;
+using RommPlugin.Core.Logging;
+using RommPlugin.Core.Models;
 using RommPlugin.Core.Storage;
 using RommPlugin.Services;
 using RommPlugin.UI.Forms;
@@ -16,38 +18,56 @@ namespace RommPlugin.MenuItems.Buttons
 
         public override async void OnSelected()
         {
-            using (var form = new RommAdversityLoginForm())
+            var settings = RommPluginStorage.Load();
+
+            if (string.IsNullOrWhiteSpace(settings.RommBaseUrl))
             {
-                if (form.ShowDialog() == DialogResult.OK)
+                System.Windows.MessageBox.Show(
+                    "RomM is not configured yet.",
+                    "RomM Plugin"
+                );
+                return;
+            }
+
+            string username;
+            string password;
+
+            using (var form = new RommAdversityLoginForm(settings))
+            {
+                if (form.ShowDialog() != DialogResult.OK) return;
+
+                if (form.UseConfiguredAccount)
                 {
-                    var username = form.Username;
-                    var password = form.Password;
-
-                    var settings = RommPluginStorage.Load();
-
-                    if (string.IsNullOrWhiteSpace(settings.RommBaseUrl))
-                    {
-                        System.Windows.MessageBox.Show(
-                            "RomM is not configured yet.",
-                            "RomM Plugin"
-                        );
-                        return;
-                    }
-
-                    var api = new RommApiClient(settings.RommBaseUrl);
-                    sync.SetApi(api);
-
-                    try
-                    {
-                        await sync.RemoveAllGamesServerMetadata(username, password);
-
-                        MessageBox.Show("All metadata has been deleted from RomM server");
-                    }
-                    catch (Exception ex)
-                    {
-                        throw new Exception("[RommPlugin] error: " + ex);
-                    }
+                    username = settings.Username;
+                    password = settings.Password;
                 }
+                else
+                {
+                    username = form.Username;
+                    password = form.Password;
+                }
+
+                if (form.SaveAdminAccount)
+                {
+                    RommAdminStorage.Save(new RommAdminAccount
+                    {
+                        Username = username,
+                        Password = password
+                    });
+                }
+            }
+
+            var api = new RommApiClient(settings.RommBaseUrl);
+            sync.SetApi(api);
+
+            try
+            {
+                await sync.RemoveAllGamesServerMetadata(username, password);
+            }
+            catch (Exception ex)
+            {
+                RommLogger.LogError("[RommPlugin] error: " + ex);
+                throw new Exception("[RommPlugin] error: " + ex);
             }
         }
     }

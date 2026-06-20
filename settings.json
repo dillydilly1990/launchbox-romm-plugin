@@ -1,8 +1,12 @@
 {
-    "RommBaseUrl": "",
-    "Username": "",
-    "Password": "",
-    "RomsPath": "",
-    "KeepLocalData": false,
-    "CurrentPlatforms":  []
+  "RommBaseUrl": "",
+  "Username": "",
+  "Password": "",
+  "RomsPath": "",
+  "KeepLocalData": false,
+  "SaveLogs": false,
+  "ProcessPendingOnStartup": true,
+  "LoginFormUseConfiguredAccount": false,
+  "LoginFormSaveAdminAccount": false,
+  "CurrentPlatforms": []
 }

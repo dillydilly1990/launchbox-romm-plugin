@@ -14,6 +14,14 @@ namespace RommPlugin.Core.Models
 
         public bool KeepLocalData { get; set; }
 
+        public bool SaveLogs { get; set; }
+
+        public bool ProcessPendingOnStartup { get; set; } = true;
+
+        public bool LoginFormUseConfiguredAccount { get; set; }
+
+        public bool LoginFormSaveAdminAccount { get; set; }
+
         public List<RommCurrentPlatform> CurrentPlatforms { get; set; } = new List<RommCurrentPlatform>();
     }
 

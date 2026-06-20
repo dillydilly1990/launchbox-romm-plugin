@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Windows.Forms;
+using RommPlugin.Core.Logging;
 using RommPlugin.Core.Models;
 using RommPlugin.Core.Storage;
 
@@ -16,13 +17,24 @@ namespace RommPlugin.UI.Forms
 
         private void LoadSettings()
         {
-            var settings = RommPluginStorage.Load();
+            RommPluginSettings settings;
+
+            try
+            {
+                settings = RommPluginStorage.Load();
+            }
+            catch
+            {
+                settings = new RommPluginSettings();
+            }
 
             txtBaseUrl.Text = settings.RommBaseUrl;
             txtUsername.Text = settings.Username;
             txtPassword.Text = settings.Password;
             txtRomsPath.Text = settings.RomsPath;
             keepLocalData.Checked = settings.KeepLocalData;
+            saveLogs.Checked = settings.SaveLogs;
+            processPendingOnStartup.Checked = settings.ProcessPendingOnStartup;
         }
 
         private void RommSettingsForm_Load(object sender, EventArgs e)
@@ -57,16 +69,17 @@ namespace RommPlugin.UI.Forms
                 return;
             }
 
-            var settings = new RommPluginSettings
-            {
-                RommBaseUrl = txtBaseUrl.Text.Trim(),
-                Username = txtUsername.Text.Trim(),
-                Password = txtPassword.Text,
-                RomsPath = txtRomsPath.Text,
-                KeepLocalData = keepLocalData.Checked
-            };
+            var settings = RommPluginStorage.Load();
+            settings.RommBaseUrl = txtBaseUrl.Text.Trim();
+            settings.Username = txtUsername.Text.Trim();
+            settings.Password = txtPassword.Text;
+            settings.RomsPath = txtRomsPath.Text;
+            settings.KeepLocalData = keepLocalData.Checked;
+            settings.SaveLogs = saveLogs.Checked;
+            settings.ProcessPendingOnStartup = processPendingOnStartup.Checked;
 
             RommPluginStorage.Save(settings);
+            RommLogger.Initialize(settings.SaveLogs);
 
             MessageBox.Show(
                 "Settings saved successfully.",

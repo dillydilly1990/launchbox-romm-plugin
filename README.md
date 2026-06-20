@@ -1,3 +1,20 @@
+
+Overview
+--------
+The LaunchBox RomM Plugin connects LaunchBox/BigBox to a RomM server so you can:
+- Sync platforms and games from the RomM server
+- Auto-fill LaunchBox metadata from the RomM server (release date, genre, company, rating, ESRB, synopsis, etc.) with priority: LaunchBoxMetadata > ScreenScraper > IGDB
+- Download cover art (Box - Front) automatically from the RomM server
+- Install and uninstall games directly from LaunchBox
+- Push LaunchBox metadata and cover art back to the RomM server
+
+Quick start
+-----------
+1. Download the plugin release and extract the plugin folder into your LaunchBox Plugins directory. Typical destination:
+
+   LaunchBox/Plugins/RomM LaunchBox Integration
+
+2. Configure connection settings (see Settings below). You can edit settings.json inside the plugin folder or configure via the LaunchBox plugin settings UI.
 # 🎮 LaunchBox RomM Plugin
 
 ![License](https://img.shields.io/badge/license-GPL--3.0-blue)
@@ -291,14 +308,7 @@ You can configure the plugin using:
 
 Example:
 
-```json
-{
-  "RommBaseUrl": "http://your-romm-server:9000",
-  "Username": "your_username",
-  "Password": "your_password",
-  "RomsPath": "D:\\LaunchBox\\Games"
-}
-```
+3. Open LaunchBox and use the main menu command:
 
 | Setting | Description |
 |---|---|
@@ -597,7 +607,10 @@ O plugin suporta variáveis dinâmicas dentro de `CommandLine`.
 
 Isso permite criar configurações automatizadas e portáveis.
 
----
+- DefaultFileName — executable used as main application (relative to the game folder)
+- HasDLC — whether the game bundle contains DLC that the plugin must treat specially
+- AdditionalApplications — list of extra LaunchBox applications (Name, Path, optional CommandLine)
+- PreLoaders / PosLoaders — programs or scripts to run before/after the main application
 
 ### 🔄 Sincronização de Metadados (LaunchBox → RomM)
 
@@ -651,7 +664,10 @@ Isso mantém os metadados do LaunchBox e do RomM totalmente sincronizados.
 - Ambiente Windows
 - Acesso de rede ao servidor RomM
 
+FAQ
 ---
+Q: How do I force a full resync?
+A: Use the RomM: Sync roms list from server option. If needed, remove problematic platforms/games from LaunchBox and run sync again.
 
 ## 📦 Instalação
 
@@ -662,7 +678,8 @@ Faça download da versão mais recente através do:
 - GitHub Repository
 - Página da Comunidade LaunchBox
 
----
+Português (Guia Rápido ao Usuário)
+==================================
 
 ### 2. Extraia Dentro do LaunchBox
 
@@ -691,14 +708,7 @@ Você pode configurar o plugin utilizando:
 
 Exemplo:
 
-```json
-{
-  "RommBaseUrl": "http://seu-romm:9000",
-  "Username": "usuario",
-  "Password": "senha",
-  "RomsPath": "D:\\Jogos"
-}
-```
+3. Abra o LaunchBox e use o comando no menu:
 
 | Configuração | Descrição |
 |---|---|

@@ -1,4 +1,6 @@
 ﻿using System;
+using RommPlugin.Core.Logging;
+using RommPlugin.Core.Storage;
 using RommPlugin.Services;
 using Unbroken.LaunchBox.Plugins;
 using Unbroken.LaunchBox.Plugins.Data;
@@ -16,13 +18,22 @@ namespace RommPlugin
                 return;
             }
 
+            var settings = RommPluginStorage.Load();
+
+            RommLogger.Initialize(settings.SaveLogs);
+
+            if (!settings.ProcessPendingOnStartup)
+            {
+                return;
+            }
+
             try
             {
-                await sync.ProcessInstallUninstallEvents();
+                await sync.ProcessInstallUninstallEvents(false);
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine("[RommPlugin] Sync error: " + ex);
+                RommLogger.LogError("[RommPlugin] Sync error: " + ex);
             }
         }
     }
