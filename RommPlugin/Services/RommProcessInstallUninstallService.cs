@@ -284,7 +284,9 @@ namespace RommPlugin.Services
 
                     if (parts.Length == 0)
                     {
-                        continue;
+                        parts = entry.FullName
+                            .Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries)
+                            .ToArray();
                     }
 
                     var relativePath = Path.Combine(parts);
