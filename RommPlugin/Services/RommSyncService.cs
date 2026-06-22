@@ -190,7 +190,7 @@ namespace RommPlugin.Services
 
                                 game.Platform = platform.Name;
 
-                                var isFolderGame = rommGame.Files.Count > 1;
+                                var isFolderGame = rommGame.HasMultipleFiles;
 
                                 SetCustomField(game, GameCustomFields.GameId, rommGame.Id.ToString());
                                 SetCustomField(game, GameCustomFields.PlatformId, rommPlatform.Id.ToString());
@@ -324,7 +324,7 @@ namespace RommPlugin.Services
                 game.Platform = platformName;
             }
 
-            var isFolderGame = rommGame.Files.Count > 1;
+            var isFolderGame = rommGame.HasMultipleFiles;
 
             SetCustomField(game, GameCustomFields.RemotePath, rommGame.FsPath ?? "");
             SetCustomField(game, GameCustomFields.FileName, (rommGame.FsName + (isFolderGame ? ".zip" : "")) ?? "");

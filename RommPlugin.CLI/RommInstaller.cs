@@ -50,7 +50,7 @@ namespace RommPlugin.CLI
 
                 Directory.CreateDirectory(localDir);
 
-                var isFolderGame = game.Files.Count > 1;
+                var isFolderGame = game.HasMultipleFiles;
 
                 var localFile = Path.Combine(localDir, game.FsName + (isFolderGame ? ".zip" : ""));
 
