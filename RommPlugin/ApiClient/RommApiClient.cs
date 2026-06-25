@@ -18,7 +18,8 @@ namespace RommPlugin.ApiClient
         {
             _http = new HttpClient
             {
-                BaseAddress = new Uri(baseUrl)
+                BaseAddress = new Uri(baseUrl),
+                Timeout = System.Threading.Timeout.InfiniteTimeSpan
             };
         }
 
@@ -188,18 +189,30 @@ namespace RommPlugin.ApiClient
 
         public async Task DownloadGameAsync(int gameId, string destinationFile)
         {
-            var response = await _http.GetAsync(
-                $"/api/roms/download?rom_ids={gameId}",
-                HttpCompletionOption.ResponseHeadersRead
-            );
+            const int maxAttempts = 3;
 
-            response.EnsureSuccessStatusCode();
-
-            using (var stream = await response.Content.ReadAsStreamAsync())
-            using (var file = new FileStream(destinationFile, FileMode.Create, FileAccess.Write, FileShare.None))
+            for (int attempt = 1; attempt <= maxAttempts; attempt++)
             {
-                await stream.CopyToAsync(file);
-                return;
+                try
+                {
+                    var response = await _http.GetAsync(
+                        $"/api/roms/download?rom_ids={gameId}",
+                        HttpCompletionOption.ResponseHeadersRead
+                    );
+
+                    response.EnsureSuccessStatusCode();
+
+                    using (var stream = await response.Content.ReadAsStreamAsync())
+                    using (var file = new FileStream(destinationFile, FileMode.Create, FileAccess.Write, FileShare.None))
+                    {
+                        await stream.CopyToAsync(file);
+                        return;
+                    }
+                }
+                catch (Exception) when (attempt < maxAttempts)
+                {
+                    await Task.Delay(1000);
+                }
             }
         }
 

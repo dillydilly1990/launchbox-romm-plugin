@@ -2,6 +2,8 @@
 using System.IO;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using Newtonsoft.Json;
+using RommPlugin.Core.Models;
 using RommPlugin.UI.Helpers;
 
 namespace RommPlugin.CLI
@@ -28,14 +30,9 @@ namespace RommPlugin.CLI
 
             if (!File.Exists(settingsPath))
             {
-                MessageBox.Show(
-                    $"Settings file not found at:\n{settingsPath}",
-                    "RomM CLI",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Error
-                );
-
-                return 3;
+                var defaultSettings = new RommPluginSettings();
+                var json = JsonConvert.SerializeObject(defaultSettings, Formatting.Indented);
+                File.WriteAllText(settingsPath, json);
             }
 
             Application.EnableVisualStyles();

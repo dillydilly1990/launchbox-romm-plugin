@@ -129,9 +129,10 @@ Example:
   "PreLoaders": [
     {
       "Name": "Launcher",
-      "Path": "Launcher.exe",
+      "Path": "..\\Apps\\Loader.exe",
       "CommandLine": "\"%romsFolder%\"",
-      "WaitToExit": false
+      "WaitToExit": false,
+      "FromLaunchBoxRoot": true
     }
   ],
   "PosLoaders": [
@@ -166,6 +167,7 @@ Supported fields:
 | `Path` | Executable path |
 | `CommandLine` | Custom command line arguments |
 | `WaitToExit` | Waits for completion before launching the game |
+| `FromLaunchBoxRoot` | When `true`, `Path` is relative to the LaunchBox root instead of the game folder. Default: `false` |
 
 ---
 
@@ -188,6 +190,7 @@ Supported fields:
 | `Name` | Name displayed inside LaunchBox |
 | `Path` | Executable path |
 | `CommandLine` | Custom command line arguments |
+| `FromLaunchBoxRoot` | When `true`, `Path` is relative to the LaunchBox root instead of the game folder. Default: `false` |
 
 ---
 
@@ -502,6 +505,18 @@ Os recursos suportados incluem:
 - Pós-loaders
 - Argumentos personalizados de linha de comando
 - Suporte a DLC
+- Flag `FromLaunchBoxRoot` para caminhos relativos à raiz do LaunchBox
+
+Campos do JSON:
+
+| Campo | Descrição |
+|---|---|
+| `DefaultFileName` | Executável principal do jogo (caminho relativo à pasta do jogo) |
+| `HasDLC` | Se `true`, ativa detecção automática de DLCs na pasta `_DLCs` |
+| `AdditionalApplications[*].Path` | Caminho relativo à **pasta do jogo** |
+| `PreLoaders[*].Path` | Caminho relativo à pasta do jogo (ou ao LaunchBox se `FromLaunchBoxRoot: true`) |
+| `PosLoaders[*].Path` | Caminho relativo à pasta do jogo (ou ao LaunchBox se `FromLaunchBoxRoot: true`) |
+| `FromLaunchBoxRoot` | `true` = caminho relativo à raiz do LaunchBox, `false` = relativo à pasta do jogo (default) |
 
 ### 🔄 Sincronização de Metadados (LaunchBox → RomM)
 

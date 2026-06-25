@@ -24,5 +24,7 @@ namespace RommPlugin.Core.Models
         public string CommandLine { get; set; } = null;
 
         public bool? WaitForExit { get; set; } = null;
+
+        public bool? FromLaunchBoxRoot { get; set; } = false;
     }
 }

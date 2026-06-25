@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Newtonsoft.Json;
@@ -33,7 +34,61 @@ namespace RommPlugin.CLI
 
         public async Task InstallGameAsync(int rommGameId)
         {
+            _api.SetBasicAuthentication(_settings.Username, _settings.Password);
+
+            _progress.SetStatus("Searching game info...");
+            _progress.SetIndeterminate(true);
+
+            var game = await _api.GetGameByIdAsync(rommGameId);
+
+            var localDir = Path.Combine(
+                _settings.RomsPath,
+                "romm",
+                game.FsPath.Replace("/", "\\")
+            );
+
+            Directory.CreateDirectory(localDir);
+
+            var isFolderGame = game.HasMultipleFiles;
+
+            var localFile = Path.Combine(localDir, game.FsName + (isFolderGame ? ".zip" : ""));
+
+            if (File.Exists(localFile))
+            {
+                var result = MessageBox.Show(
+                    $"{game.FsName} already exists. Do you want to replace it?",
+                    "RomM CLI - Confirm",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Warning
+                );
+
+                if (result == DialogResult.No)
+                {
+                    return;
+                }
+            }
+
             try
+            {
+                _progress.SetStatus($"{game.FsName} is downloading...");
+                await _api.DownloadGameAsync(rommGameId, localFile);
+            }
+            catch (Exception)
+            {
+                if (File.Exists(localFile))
+                {
+                    File.Delete(localFile);
+                }
+
+                throw;
+            }
+
+            AppendSyncEvent("install", game.Id, game.FsName);
+        }
+
+        public async Task UninstallGameAsync(int rommGameId)
+        {
+            await Task.Run(async () =>
             {
                 _api.SetBasicAuthentication(_settings.Username, _settings.Password);
 
@@ -42,114 +97,96 @@ namespace RommPlugin.CLI
 
                 var game = await _api.GetGameByIdAsync(rommGameId);
 
-                var localDir = Path.Combine(
+                var localFile = Path.Combine(
                     _settings.RomsPath,
                     "romm",
-                    game.FsPath.Replace("/", "\\")
+                    game.FsPath.Replace("/", "\\"),
+                    game.FsName
                 );
 
-                Directory.CreateDirectory(localDir);
+                _progress.SetStatus($"{game.FsName} is deleting...");
 
-                var isFolderGame = game.HasMultipleFiles;
-
-                var localFile = Path.Combine(localDir, game.FsName + (isFolderGame ? ".zip" : ""));
-
-                _progress.SetStatus($"{game.FsName} is downloading...");
-                await _api.DownloadGameAsync(rommGameId, localFile);
-
-                AppendSyncEvent("install", game.Id, game.FsName);
-            }
-            catch (Exception ex)
-            {
-
-                throw new Exception("[RommPlugin] error: " + ex);
-            }
-        }
-
-        public async Task UninstallGameAsync(int rommGameId)
-        {
-            try
-            {
-                await Task.Run(async () =>
+                if (File.Exists(localFile))
                 {
-                    _api.SetBasicAuthentication(_settings.Username, _settings.Password);
-
-                    _progress.SetStatus("Searching game info...");
                     _progress.SetIndeterminate(true);
+                    File.Delete(localFile);
+                }
+                else if (Directory.Exists(localFile))
+                {
+                    _progress.SetIndeterminate(true);
+                    Directory.Delete(localFile, true);
+                }
+                else
+                {
+                    MessageBox.Show($"{game.FsName} was already removed");
+                }
 
-                    var game = await _api.GetGameByIdAsync(rommGameId);
-
-                    var localFile = Path.Combine(
-                        _settings.RomsPath,
-                        "romm",
-                        game.FsPath.Replace("/", "\\"),
-                        game.FsName
-                    );
-
-                    _progress.SetStatus($"{game.FsName} is deleting...");
-
-                    if (File.Exists(localFile))
-                    {
-                        _progress.SetIndeterminate(true);
-                        File.Delete(localFile);
-                    }
-                    else if (Directory.Exists(localFile))
-                    {
-                        _progress.SetIndeterminate(true);
-                        Directory.Delete(localFile, true);
-                    }
-
-                    AppendSyncEvent("uninstall", game.Id, game.FsName);
-                });
-            }
-            catch (Exception ex)
-            {
-                throw new Exception("[RommPlugin] error: " + ex);
-            }
+                AppendSyncEvent("uninstall", game.Id, game.FsName);
+            });
         }
 
         private void AppendSyncEvent(string action, int rommGameId, string gameName)
         {
-            var flagPath = Path.Combine(
-                AppDomain.CurrentDomain.BaseDirectory,
-                "romm.sync"
-            );
+            const string mutexName = "Global\\RommPluginSync";
 
-            RommSyncFile file;
-
-            if (File.Exists(flagPath))
+            using (var mutex = new Mutex(false, mutexName))
             {
-                var json = File.ReadAllText(flagPath);
-                file = JsonConvert.DeserializeObject<RommSyncFile>(json) ?? new RommSyncFile();
-            }
-            else
-            {
-                file = new RommSyncFile();
-            }
-
-            file.Events = file.Events == null ? new List<RommSyncEvent>() : file.Events;
-
-            var existingEvent = file.Events.FirstOrDefault(e => e.RommGameId == rommGameId);
-
-            if (existingEvent == null)
-            {
-                file.Events.Add(new RommSyncEvent
+                try
                 {
-                    RommGameId = rommGameId,
-                    Action = action,
-                    Timestamp = DateTime.UtcNow
-                });
-            }
-            else
-            {
-                existingEvent.Action = action;
-                existingEvent.Timestamp = DateTime.UtcNow;
-            }
+                    mutex.WaitOne();
+                }
+                catch (AbandonedMutexException)
+                {
+                }
 
-            File.WriteAllText(
-                flagPath,
-                JsonConvert.SerializeObject(file, Formatting.Indented)
-            );
+                try
+                {
+                    var flagPath = Path.Combine(
+                        AppDomain.CurrentDomain.BaseDirectory,
+                        "romm.sync"
+                    );
+
+                    RommSyncFile file;
+
+                    if (File.Exists(flagPath))
+                    {
+                        var json = File.ReadAllText(flagPath);
+                        file = JsonConvert.DeserializeObject<RommSyncFile>(json) ?? new RommSyncFile();
+                    }
+                    else
+                    {
+                        file = new RommSyncFile();
+                    }
+
+                    file.Events = file.Events == null ? new List<RommSyncEvent>() : file.Events;
+
+                    var existingEvent = file.Events.FirstOrDefault(e => e.RommGameId == rommGameId);
+
+                    if (existingEvent == null)
+                    {
+                        file.Events.Add(new RommSyncEvent
+                        {
+                            RommGameId = rommGameId,
+                            Action = action,
+                            Timestamp = DateTime.UtcNow
+                        });
+                    }
+                    else
+                    {
+                        existingEvent.Action = action;
+                        existingEvent.Timestamp = DateTime.UtcNow;
+                    }
+
+                    File.WriteAllText(
+                        flagPath,
+                        JsonConvert.SerializeObject(file, Formatting.Indented)
+                    );
+                }
+                finally
+                {
+                    mutex.ReleaseMutex();
+                }
+            }
 
             MessageBox.Show($"{gameName} is {action}ed, you need to process pending installs");
         }

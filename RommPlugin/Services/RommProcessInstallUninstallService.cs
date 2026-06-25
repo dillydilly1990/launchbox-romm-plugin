@@ -4,6 +4,7 @@ using System.IO;
 using System.IO.Abstractions;
 using System.IO.Compression;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using Newtonsoft.Json;
@@ -41,7 +42,29 @@ namespace RommPlugin.Services
                         return;
                     }
 
-                    var file = JsonConvert.DeserializeObject<RommSyncFile>(File.ReadAllText(flagPath));
+                    const string mutexName = "Global\\RommPluginSync";
+
+                    RommSyncFile file;
+
+                    using (var mutex = new Mutex(false, mutexName))
+                    {
+                        try
+                        {
+                            mutex.WaitOne();
+                        }
+                        catch (AbandonedMutexException)
+                        {
+                        }
+
+                        try
+                        {
+                            file = JsonConvert.DeserializeObject<RommSyncFile>(File.ReadAllText(flagPath));
+                        }
+                        finally
+                        {
+                            mutex.ReleaseMutex();
+                        }
+                    }
 
                     if (file?.Events == null || file.Events.Count == 0)
                     {
@@ -71,15 +94,14 @@ namespace RommPlugin.Services
 
                     var totalEvents = file.Events.Count;
                     var completedEvents = 0;
+                    var processedIds = new HashSet<int>();
 
-                    await Task.Run(() =>
+                    foreach (var evt in file.Events.ToList())
                     {
-                        foreach (var evt in file.Events.ToList())
+                        progress.SetStatus($"Processing: {completedEvents} of {totalEvents}");
+
+                        try
                         {
-                            progress.SetStatus($"Processing: {completedEvents} of {totalEvents}");
-
-                            var installed = false;
-
                             if (!gamesById.TryGetValue(evt.RommGameId, out var game))
                             {
                                 continue;
@@ -120,43 +142,79 @@ namespace RommPlugin.Services
                                     }
 
                                     localFile = extractDir;
-                                    installed = Directory.Exists(localFile);
                                 }
                                 else
                                 {
                                     UnzipAndFlatten(zipPath);
 
-                                    installed = File.Exists(localFile);
-                                    game.ApplicationPath = installed ? localFile : null;
+                                    game.ApplicationPath = File.Exists(localFile) ? localFile : null;
                                 }
+
+                                game.Installed = isFolderGame ? Directory.Exists(localFile) : File.Exists(localFile);
+
+                                processedIds.Add(evt.RommGameId);
+                                completedEvents++;
                             }
                             else if (evt.Action == "uninstall")
                             {
                                 ClearGameAdditionalApplications(game);
                                 game.ApplicationPath = null;
-                                installed = false;
+                                game.Installed = false;
+
+                                processedIds.Add(evt.RommGameId);
+                                completedEvents++;
                             }
-
-                            game.Installed = installed;
-
-                            file.Events.Remove(evt);
-
-                            completedEvents++;
+                            else
+                            {
+                                RommLogger.LogError($"[RommPlugin] Unknown action '{evt.Action}' for game {game.Title} (ID: {evt.RommGameId}), skipping");
+                                processedIds.Add(evt.RommGameId);
+                                completedEvents++;
+                            }
                         }
-                    });
-
-                    dataManager.Save();
-
-                    if (file.Events.Count == 0)
-                    {
-                        File.Delete(flagPath);
+                        catch (Exception ex)
+                        {
+                            RommLogger.LogError($"[RommPlugin] Error processing event '{evt.Action}' for game ID {evt.RommGameId}: {ex.Message}");
+                            RommLogger.LogException(ex);
+                        }
                     }
-                    else
+
+                    using (var mutex = new Mutex(false, mutexName))
                     {
-                        File.WriteAllText(
-                            flagPath,
-                            JsonConvert.SerializeObject(file, Formatting.Indented)
-                        );
+                        try
+                        {
+                            mutex.WaitOne();
+                        }
+                        catch (AbandonedMutexException)
+                        {
+                        }
+
+                        try
+                        {
+                            dataManager.Save();
+
+                            var diskFile = JsonConvert.DeserializeObject<RommSyncFile>(File.ReadAllText(flagPath));
+
+                            if (diskFile?.Events != null)
+                            {
+                                diskFile.Events.RemoveAll(e => processedIds.Contains(e.RommGameId));
+
+                                if (diskFile.Events.Count == 0)
+                                {
+                                    File.Delete(flagPath);
+                                }
+                                else
+                                {
+                                    File.WriteAllText(
+                                        flagPath,
+                                        JsonConvert.SerializeObject(diskFile, Formatting.Indented)
+                                    );
+                                }
+                            }
+                        }
+                        finally
+                        {
+                            mutex.ReleaseMutex();
+                        }
                     }
 
                     RommLogger.Log("Pending installs processed successfully");
@@ -192,7 +250,7 @@ namespace RommPlugin.Services
 
             if (!string.IsNullOrWhiteSpace(config.DefaultFileName))
             {
-                game.ApplicationPath = Path.Combine(baseFolder, config.DefaultFileName);
+                game.ApplicationPath = Path.GetFullPath(Path.Combine(baseFolder, config.DefaultFileName));
             }
 
             if (config.AdditionalApplications != null)
@@ -201,7 +259,7 @@ namespace RommPlugin.Services
                 {
                     var add = game.AddNewAdditionalApplication();
                     add.Name = app.Name;
-                    add.ApplicationPath = Path.Combine(baseFolder, app.Path);
+                    add.ApplicationPath = ResolvePath(baseFolder, app.Path, false);
                     add.CommandLine = app.CommandLine;
                 }
             }
@@ -212,7 +270,7 @@ namespace RommPlugin.Services
                 {
                     var add = game.AddNewAdditionalApplication();
                     add.Name = loader.Name;
-                    add.ApplicationPath = Path.Combine(baseFolder, loader.Path);
+                    add.ApplicationPath = ResolvePath(baseFolder, loader.Path, loader.FromLaunchBoxRoot ?? false);
                     add.CommandLine = loader.CommandLine;
                     add.AutoRunBefore = true;
                     add.WaitForExit = loader.WaitForExit ?? false;
@@ -225,7 +283,7 @@ namespace RommPlugin.Services
                 {
                     var add = game.AddNewAdditionalApplication();
                     add.Name = loader.Name;
-                    add.ApplicationPath = Path.Combine(baseFolder, loader.Path);
+                    add.ApplicationPath = ResolvePath(baseFolder, loader.Path, loader.FromLaunchBoxRoot ?? false);
                     add.CommandLine = loader.CommandLine;
                     add.AutoRunAfter = true;
                 }
@@ -249,6 +307,21 @@ namespace RommPlugin.Services
                     }
                 }
             }
+        }
+
+        private string ResolvePath(string baseFolder, string path, bool fromLaunchBoxRoot)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return path;
+            }
+
+            if (fromLaunchBoxRoot)
+            {
+                return path;
+            }
+
+            return Path.GetFullPath(Path.Combine(baseFolder, path));
         }
 
         private void ClearGameAdditionalApplications(IGame game)
